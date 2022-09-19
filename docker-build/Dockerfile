@@ -28,7 +28,8 @@ RUN         apt update && apt upgrade -y \
 
 # Install Anaconda or Miniconda
 COPY        anaconda.sh .
-RUN         bash anaconda.sh -b -u -p /anaconda && /anaconda/bin/conda init bash
+RUN         bash anaconda.sh -b -u -p /anaconda && /anaconda/bin/conda init bash \
+            && rm -rf anaconda.sh
 
 # SD 
 WORKDIR     /stable-diffusion 
@@ -48,7 +49,6 @@ RUN         git clone https://github.com/TencentARC/GFPGAN.git
 WORKDIR     /GFPGAN 
 RUN         pip3 install -r requirements.txt \
             && python3 setup.py develop \
-            # && wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth -P experiments/pretrained_models 
             && ln -s "/data/GFPGANv1.3.pth" experiments/pretrained_models/GFPGANv1.3.pth
 
 WORKDIR     /stable-diffusion 
