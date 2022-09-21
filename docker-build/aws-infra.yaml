@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation sample template for deploying Stable Diffusion on a container.'
+Parameters:
+  BucketName:
+    Description: Bucket for storing model files and outputs
+    Type: String
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName: 
+        Ref: BucketName
