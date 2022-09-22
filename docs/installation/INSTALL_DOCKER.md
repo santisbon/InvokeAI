@@ -1,48 +1,42 @@
 # Before you begin
 
-- For end users: Install Stable Diffusion locally using the instructions for your OS.
-- For developers: For container-related development tasks or for enabling easy deployment to other environments (on-premises or cloud), follow these instructions. For general use, install locally to leverage your machine's GPU.
+- For end users: Install locally using the installation doc for your OS.
+- For developers: For container-related development tasks or for enabling easy deployment to other environments (on-premises or cloud), follow these instructions.  
+For general use, install locally to leverage your machine's GPU.
 
 # Why containers?
 
-They provide a flexible, reliable way to build and deploy Stable Diffusion. You'll also use a Docker volume to store the largest model files and image outputs as a first step in decoupling storage and compute. Future enhancements can do this for other assets. See [Processes](https://12factor.net/processes) under the Twelve-Factor App methodology for details on why running applications in such a stateless fashion is important.
+They provide a flexible, reliable way to build and deploy applications. There are many ways to deploy an application on a container: On your laptop for local testing, on the cloud using either a self-managed VM or a managed container service, to name a few.  
 
-You can specify the target platform when building the image and running the container. You'll also need to specify the Stable Diffusion requirements file that matches the container's OS and the architecture it will run on.  
+There are also different ways to decouple storage and compute e.g. using Docker volumes, bind mounts, attached block storage, a shared file system, or mounting object storage onto the host as a directory and mounting it onto the Docker container. All of these have tradeoffs regarding ease of use, portability, performance, cost, features, and operational overhead such as backups. See [Processes](https://12factor.net/processes) under the Twelve-Factor App methodology for details on why running applications in such a stateless fashion is important.  
 
-Developers on Apple silicon (M1/M2): You [can't access your GPU cores from Docker containers](https://github.com/pytorch/pytorch/issues/81224) and performance is reduced compared with running it directly on macOS but for development purposes it's fine. Once you're done with development tasks on your laptop you can build for the target platform and architecture and deploy to another environment with NVIDIA GPUs on-premises or in the cloud.  
+You'll take the first steps in decoupling compute and storage by storing the largest model files and all image outputs separately from the container image. Future enhancements can do this for other assets.  
 
-# Installation on a Linux container 
+# Prerequisites
 
-## Prerequisites
-
-### Get the data files  
-
-Go to [Hugging Face](https://huggingface.co/CompVis/stable-diffusion-v-1-4-original), and click "Access repository" to Download the model file ```sd-v1-4.ckpt``` (~4 GB) to ```~/Downloads```. You'll need to create an account but it's quick and free.  
-
-Also download the face restoration model.
+1. Go to [Hugging Face](https://huggingface.co/CompVis/stable-diffusion-v-1-4-original), and click "Access repository" to Download the model file ```sd-v1-4.ckpt``` (~4 GB) to ```~/Downloads```. You'll need to create an account but it's quick and free.  
+2. Also download the face restoration model.
 ```Shell
 cd ~/Downloads
 wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth
 ```
 
-### Install [Docker](https://github.com/santisbon/guides#docker)  
-On the Docker Desktop app, go to Preferences, Resources, Advanced. Increase the CPUs and Memory to avoid this [Issue](https://github.com/lstein/stable-diffusion/issues/342). You may need to increase Swap and Disk image size too.  
+# Option A - Local deployment 
+Developers on Apple silicon (M1/M2): You can't access your GPU cores from Docker containers and performance is reduced compared with running it directly on macOS but for development purposes it's fine.  
 
-## Setup
+This example shows local deployment on a Mac with Apple silicon. If your system is different adjust your platform to ```amd64``` and use the appropriate requirements file.
 
-Set the fork you want to use and other variables.  
+## Install [Docker](https://github.com/santisbon/guides/blob/main/setup/docker.md)  
+On the Docker Desktop app, go to Preferences, Resources, Advanced. Increase the CPUs and Memory to avoid this [Issue](https://github.com/invoke-ai/InvokeAI/issues/342). You may need to increase Swap and Disk image size too.  
+
+## Set up the container
+ 
 ```Shell
-TAG_STABLE_DIFFUSION="santisbon/stable-diffusion"
+DOCKER_IMAGE_TAG="santisbon/stable-diffusion"
 PLATFORM="linux/arm64"
-GITHUB_STABLE_DIFFUSION="-b orig-gfpgan https://github.com/santisbon/stable-diffusion.git"
-REQS_STABLE_DIFFUSION="requirements-linux-arm64.txt"
+REPO="-b orig-gfpgan https://github.com/santisbon/stable-diffusion.git"
+REQS_FILE="requirements-linux-arm64.txt"
 CONDA_SUBDIR="osx-arm64"
-
-echo $TAG_STABLE_DIFFUSION
-echo $PLATFORM
-echo $GITHUB_STABLE_DIFFUSION
-echo $REQS_STABLE_DIFFUSION
-echo $CONDA_SUBDIR
 ```
 
 Create a Docker volume for the downloaded model files.
@@ -63,7 +57,7 @@ docker cp GFPGANv1.3.pth dummy:/data
 Get the repo and download the Miniconda installer (we'll need it at build time). Replace the URL with the version matching your container OS and the architecture it will run on.
 ```Shell
 cd ~
-git clone $GITHUB_STABLE_DIFFUSION
+git clone $REPO
 
 cd stable-diffusion/docker-build
 chmod +x entrypoint.sh
@@ -75,10 +69,10 @@ Choose the Linux container's host platform: x86-64/Intel is ```amd64```. Apple s
 The application uses libraries that need to match the host environment so use the appropriate requirements file.  
 Tip: Check that your shell session has the env variables set above.  
 ```Shell
-docker build -t $TAG_STABLE_DIFFUSION \
+docker build -t $DOCKER_IMAGE_TAG \
 --platform $PLATFORM \
---build-arg gsd=$GITHUB_STABLE_DIFFUSION \
---build-arg rsd=$REQS_STABLE_DIFFUSION \
+--build-arg gsd=$REPO \
+--build-arg rsd=$REQS_FILE \
 --build-arg cs=$CONDA_SUBDIR \
 .
 ```
@@ -92,17 +86,129 @@ docker run -it \
 --name stable-diffusion \
 --hostname stable-diffusion \
 --mount source=my-vol,target=/data \
-$TAG_STABLE_DIFFUSION
+$DOCKER_IMAGE_TAG
+```
+The output dir set to the Docker volume you created earlier. 
+
+# Option B - Cloud deployment
+ 
+We'll use a cloud environment to illustrate the process of deploying to a container on an **amd**64 machine that can use CUDA with an NVIDIA GPU.  
+
+For flexibility on our choice of container registry and other aspects, we'll use a VM on the cloud to build the Docker image. For simplicity we'll store the model files and images in object storage that can be mounted on our container with the help of a utility without changes to the application code.  
+
+This example uses [AWS](https://aws.amazon.com/) but the concepts should translate to other environments. You'll need an AWS account. Make sure you have the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and configured with AWS credentials with ```AdministratorAccess```. Then follow this guide.  
+
+## Setup the cloud instance
+
+We will use:  
+- The Deep Learning AMI with Ubuntu. It includes NVIDIA CUDA, Docker, and NVIDIA-Docker.  
+- A [GPU-based instance](https://docs.aws.amazon.com/dlami/latest/devguide/gpu.html) optimized for machine learning. Note that these have a cost so make sure you understand the pricing for [G4](https://aws.amazon.com/ec2/instance-types/g4/) and [G5](https://aws.amazon.com/ec2/instance-types/g5/) instances.
+- S3 Standard for storage. Make sure you understand [S3 pricing](https://aws.amazon.com/s3/pricing/).
+- The default subnet on the default VPC.
+- SSM Parameter Store so we can retrieve configuration parameters while creating or updating the infrastructure.  
+- SSH to connect to the instance with an RSA key that we'll create.
+
+**On your laptop**
+```Shell
+REPO="https://github.com/santisbon/stable-diffusion"
+REGION="us-east-1"
+MY_KEY="awsec2.pem"
+BUCKET="santisbon-ai"
+AMI="$(aws ec2 describe-images \
+--region $REGION \
+--owners amazon \
+--filters 'Name=name,Values=Deep Learning AMI (Ubuntu 18.04) Version ??.?' \
+          'Name=state,Values=available' \
+--query 'reverse(sort_by(Images, &CreationDate))[0].ImageId' | tr -d  '"')"
+
+mkdir -p ~/.ssh/
+aws ec2 create-key-pair --region $REGION --key-name $MY_KEY --query 'KeyMaterial' | tr -d  '"' > ~/.ssh/$MY_KEY
+chmod 400 ~/.ssh/$MY_KEY
+
+aws ssm put-parameter --type "String" --data-type "aws:ec2:image" \
+    --name "ai/ec2/deep-learning-ami" \
+    --value $AMI 
+
+aws ssm put-parameter --type "String" \
+    --name "ai/ec2/instance-type-dev" \
+    --value "g4dn.xlarge" 
+
+aws ssm put-parameter --type "String" \
+    --name "ai/ec2/instance-type-prod" \
+    --value "g5.xlarge" 
+
+aws ssm put-parameter --type "String" \
+    --name "ai/ec2/key-name" \
+    --value $MY_KEY 
+
+cd ~ && git clone $REPO && cd stable-diffusion/docker-build
+
+aws cloudformation create-stack \
+--stack-name ai \
+--template-body file://./aws-infra.yaml  \
+--parameters ParameterKey=AmiId,ParameterValue=ai/ec2/deep-learning-ami \
+             ParameterKey=InstanceType,ParameterValue=ai/ec2/instance-type-dev \
+             ParameterKey=KeyName,ParameterValue=ai/ec2/key-name \
+             ParameterKey=BucketName,ParameterValue=$BUCKET \
+             ParameterKey=SSHLocation,ParameterValue=0.0.0.0/0 \
+--capabilities CAPABILITY_NAMED_IAM
+
+cd ~/Downloads
+aws s3 cp ./sd-v1-4.ckpt s3://$BUCKET/sd-v1-4.ckpt
+aws s3 cp ./GFPGANv1.3.pth s3://$BUCKET/GFPGANv1.3.pth
+
+# TODO: Connect to the instance via SSH
+ssh -i ~/.ssh/$MY_KEY instance-user-name@instance-public-dns-name
+
 ```
 
-# Usage (time to have fun)
+## Set up the container
+
+**On the cloud instance**
+```Shell
+REPO="https://github.com/santisbon/stable-diffusion"
+DOCKER_IMAGE_TAG="santisbon/stable-diffusion"
+PLATFORM="linux/amd64"
+REQS_FILE="requirements-lin.txt"
+# CONDA_SUBDIR=""
+
+# View contents of the dir mounted on the host (should match the S3 bucket).
+ls /mnt/ai-data
+
+# TODO: Set the env vars on the instance
+
+docker build -t $DOCKER_IMAGE_TAG \
+--platform $PLATFORM \
+--build-arg gsd=$REPO \
+--build-arg rsd=$REQS_FILE \
+.
+
+# Run container with mount source = host dir and target = container dir
+# TODO: Grab parameters from Parameter Store with aws cli. We'll need SSM permissions on the role.
+docker run -it \
+--rm \
+--platform $PLATFORM \
+--name stable-diffusion \
+--hostname stable-diffusion \
+--mount type=bind,source=/mnt/ai-data,target=/data \
+$DOCKER_IMAGE_TAG
+```
+
+**On the container**
+```Shell
+# If your container's entrypoint is not set up to start the "dream" script automatically:
+# View contents of the dir mounted on the container (should match the S3 bucket).
+ls /data
+python3 scripts/dream.py --full_precision -o /data
+```
+
+# Usage 
+Time to have fun
 
 ## Startup
-If you're on a **Linux container** the ```dream``` script is **automatically started** and the output dir set to the Docker volume you created earlier. 
 
 If you're **directly on macOS follow these startup instructions**.  
-With the Conda environment activated (```conda activate ldm```), run the interactive interface that combines the functionality of the original scripts ```txt2img``` and ```img2img```:  
-Use the more accurate but VRAM-intensive full precision math because half-precision requires autocast and won't work.  
+With the Conda environment activated (```conda activate ldm```) use the more accurate but VRAM-intensive full precision math because half-precision requires autocast and won't work.  
 By default the images are saved in ```outputs/img-samples/```.
 ```Shell
 python3 scripts/dream.py --full_precision  
@@ -172,12 +278,11 @@ Press Control-C at the command line to stop the web server.
 
 Some text you can add at the end of the prompt to make it very pretty:
 ```Shell
-cinematic photo, highly detailed, cinematic lighting, ultra-detailed, ultrarealistic, photorealism, Octane Rendering, cyberpunk lights, Hyper Detail, 8K, HD, Unreal Engine, V-Ray, full hd, cyberpunk, abstract, 3d octane render + 4k UHD + immense detail + dramatic lighting + well lit + black, purple, blue, pink, cerulean, teal, metallic colours, + fine details, ultra photoreal, photographic, concept art, cinematic composition, rule of thirds, mysterious, eerie, photorealism, breathtaking detailed, painting art deco pattern, by hsiao, ron cheng, john james audubon, bizarre compositions, exquisite detail, extremely moody lighting, painted by greg rutkowski makoto shinkai takashi takeuchi studio ghibli, akihiko yoshida
+Hyper Detail, Octane Rendering, Unreal Engine, V-Ray, cinematic photo, highly detailed, cinematic lighting, ultra-detailed, ultrarealistic, photorealism, cyberpunk lights, 8K, HD, full hd, cyberpunk, abstract, 3d octane render + 4k UHD + immense detail + dramatic lighting + well lit + black, purple, blue, pink, cerulean, teal, metallic colours, + fine details, ultra photoreal, photographic, concept art, cinematic composition, rule of thirds, mysterious, eerie, photorealism, breathtaking detailed, painting art deco pattern, by hsiao, ron cheng, john james audubon, bizarre compositions, exquisite detail, extremely moody lighting, painted by greg rutkowski makoto shinkai takashi takeuchi studio ghibli, akihiko yoshida
 ```
 
 The original scripts should work as well.
 ```Shell
 python3 scripts/orig_scripts/txt2img.py --help
-python3 scripts/orig_scripts/txt2img.py --ddim_steps 100 --n_iter 1 --n_samples 1  --plms --prompt "new born baby kitten. Hyper Detail, Octane Rendering, Unreal Engine, V-Ray"
-python3 scripts/orig_scripts/txt2img.py --ddim_steps 5   --n_iter 1 --n_samples 1  --plms --prompt "ocean" # or --klms
+python3 scripts/orig_scripts/txt2img.py --ddim_steps 5 --n_iter 1 --n_samples 1  --plms --prompt "ocean" # or --klms
 ```
