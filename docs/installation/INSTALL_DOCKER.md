@@ -1,3 +1,23 @@
+Table of Contents
+=================
+<!--ts-->
+* [Before you begin](#before-you-begin)
+* [Why containers?](#why-containers)
+* [Prerequisites](#prerequisites)
+* [Option A - Local deployment](#option-a---local-deployment)
+   * [Install <a href="https://github.com/santisbon/guides/blob/main/setup/docker.md">Docker</a>](#install-docker)
+   * [Set up the container](#set-up-the-container)
+* [Option B - Cloud deployment](#option-b---cloud-deployment)
+   * [Setup the cloud instance](#setup-the-cloud-instance)
+   * [Set up the container](#set-up-the-container-1)
+* [Usage](#usage)
+   * [Startup](#startup)
+   * [Text to Image](#text-to-image)
+   * [Image to Image](#image-to-image)
+   * [Web Interface](#web-interface)
+   * [Notes](#notes)
+<!--te-->
+
 # Before you begin
 
 - For end users: Install locally using the installation doc for your OS.
@@ -83,8 +103,8 @@ Tip: Make sure you've created and populated the Docker volume (above).
 docker run -it \
 --rm \
 --platform $PLATFORM \
---name stable-diffusion \
---hostname stable-diffusion \
+--name invoke-ai \
+--hostname invoke-ai \
 --mount source=my-vol,target=/data \
 $DOCKER_IMAGE_TAG
 ```
@@ -113,7 +133,7 @@ We will use:
 REPO="https://github.com/santisbon/stable-diffusion"
 REGION="us-east-1"
 MY_KEY="awsec2.pem"
-BUCKET="santisbon-ai"
+BUCKET="invoke-ai"
 AMI="$(aws ec2 describe-images \
 --region $REGION \
 --owners amazon \
@@ -157,8 +177,10 @@ cd ~/Downloads
 aws s3 cp ./sd-v1-4.ckpt s3://$BUCKET/sd-v1-4.ckpt
 aws s3 cp ./GFPGANv1.3.pth s3://$BUCKET/GFPGANv1.3.pth
 
-# TODO: Connect to the instance via SSH
-ssh -i ~/.ssh/$MY_KEY instance-user-name@instance-public-dns-name
+INSTANCE_PUBLIC_DNS="$(aws cloudformation describe-stacks --stack-name ai --output json \
+--query "Stacks[0].Outputs[?OutputKey=='HostPublicDnsName'].OutputValue | [0]" | tr -d '"')"
+
+ssh -i ~/.ssh/$MY_KEY ubuntu@$INSTANCE_PUBLIC_DNS
 
 ```
 
@@ -170,12 +192,16 @@ REPO="https://github.com/santisbon/stable-diffusion"
 DOCKER_IMAGE_TAG="santisbon/stable-diffusion"
 PLATFORM="linux/amd64"
 REQS_FILE="requirements-lin.txt"
-# CONDA_SUBDIR=""
 
 # View contents of the dir mounted on the host (should match the S3 bucket).
 ls /mnt/ai-data
 
-# TODO: Set the env vars on the instance
+cd ~
+git clone $REPO
+
+cd stable-diffusion/docker-build
+chmod +x entrypoint.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
 
 docker build -t $DOCKER_IMAGE_TAG \
 --platform $PLATFORM \
@@ -183,20 +209,18 @@ docker build -t $DOCKER_IMAGE_TAG \
 --build-arg rsd=$REQS_FILE \
 .
 
-# Run container with mount source = host dir and target = container dir
-# TODO: Grab parameters from Parameter Store with aws cli. We'll need SSM permissions on the role.
+# Mount: source is the host dir and target is the container dir
 docker run -it \
 --rm \
 --platform $PLATFORM \
---name stable-diffusion \
---hostname stable-diffusion \
+--name invoke-ai \
+--hostname invoke-ai \
 --mount type=bind,source=/mnt/ai-data,target=/data \
 $DOCKER_IMAGE_TAG
 ```
 
 **On the container**
 ```Shell
-# If your container's entrypoint is not set up to start the "dream" script automatically:
 # View contents of the dir mounted on the container (should match the S3 bucket).
 ls /data
 python3 scripts/dream.py --full_precision -o /data

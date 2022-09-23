@@ -1,8 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'AWS CloudFormation template for InvokeAI (formerly Stable Diffusion).
-To allow this template to execute you will need to acknowledge that you understand this template creates IAM resources when you create the stack.
-Do this by specifying the CAPABILITY_IAM flag to the cfn-create-stack command line tool. 
-If you specify a role name, you must specify the CAPABILITY_NAMED_IAM value to acknowledge your template's capabilities.'
+Description: 'AWS CloudFormation template for InvokeAI (formerly Stable Diffusion).'
 Parameters:
   AmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
@@ -67,6 +64,9 @@ Resources:
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref S3EC2InstanceProfile
       KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: "DockerHost"
       SecurityGroups:
       - Ref: InstanceSecurityGroup
       UserData:
@@ -86,3 +86,10 @@ Resources:
         FromPort: '22'
         ToPort: '22'
         CidrIp: !Ref SSHLocation
+Outputs:
+  HostPublicDnsName:
+    Value:
+      Fn::GetAtt:
+      - HostInstance
+      - PublicDnsName
+    Description: EC2 instance Public DNS Name
