@@ -1,6 +1,7 @@
 Table of Contents
 =================
 <!--ts-->
+* [Table of Contents](#table-of-contents)
 * [Before you begin](#before-you-begin)
 * [Why containers?](#why-containers)
 * [Prerequisites](#prerequisites)
@@ -8,7 +9,7 @@ Table of Contents
    * [Install <a href="https://github.com/santisbon/guides/blob/main/setup/docker.md">Docker</a>](#install-docker)
    * [Set up the container](#set-up-the-container)
 * [Option B - Cloud deployment](#option-b---cloud-deployment)
-   * [Setup the cloud instance](#setup-the-cloud-instance)
+   * [Set up the cloud instance](#set-up-the-cloud-instance)
    * [Set up the container](#set-up-the-container-1)
 * [Usage](#usage)
    * [Startup](#startup)
@@ -16,6 +17,7 @@ Table of Contents
    * [Image to Image](#image-to-image)
    * [Web Interface](#web-interface)
    * [Notes](#notes)
+* [Troubleshooting](#troubleshooting)
 <!--te-->
 
 # Before you begin
