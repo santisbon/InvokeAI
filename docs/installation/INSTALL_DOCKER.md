@@ -76,11 +76,10 @@ docker cp GFPGANv1.3.pth dummy:/data
 
 Get the repo and download the Miniconda installer (we'll need it at build time). Replace the URL with the version matching your container OS and the architecture it will run on.
 ```Shell
-cd ~
-git clone $REPO
-
-cd stable-diffusion/docker-build
-chmod +x entrypoint.sh
+cd ~  && mkdir docker-build && cd docker-build
+# TODO: Change permalinks to main branch once it's merged
+wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/Dockerfile 
+wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/entrypoint.sh && chmod +x entrypoint.sh
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
 ```
 
@@ -118,7 +117,7 @@ For flexibility on our choice of container registry and other aspects, we'll use
 
 This example uses [AWS](https://aws.amazon.com/) but the concepts should translate to other environments. You'll need an AWS account. Make sure you have the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and configured with AWS credentials with ```AdministratorAccess```. Then follow this guide.  
 
-## Setup the cloud instance
+## Set up the cloud instance
 
 We will use:  
 - The Deep Learning AMI with Ubuntu. It includes NVIDIA CUDA, Docker, and NVIDIA-Docker.  
@@ -161,7 +160,9 @@ aws ssm put-parameter --type "String" \
     --name "ai/ec2/key-name" \
     --value $MY_KEY 
 
-cd ~ && git clone $REPO && cd stable-diffusion/docker-build
+cd ~  && mkdir docker-build && cd docker-build
+# TODO: Change permalinks to main branch once it's merged
+wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/aws-infra.yaml
 
 aws cloudformation create-stack \
 --stack-name ai \
@@ -181,7 +182,6 @@ INSTANCE_PUBLIC_DNS="$(aws cloudformation describe-stacks --stack-name ai --outp
 --query "Stacks[0].Outputs[?OutputKey=='HostPublicDnsName'].OutputValue | [0]" | tr -d '"')"
 
 ssh -i ~/.ssh/$MY_KEY ubuntu@$INSTANCE_PUBLIC_DNS
-
 ```
 
 ## Set up the container
@@ -196,12 +196,11 @@ REQS_FILE="requirements-lin.txt"
 # View contents of the dir mounted on the host (should match the S3 bucket).
 ls /mnt/ai-data
 
-cd ~
-git clone $REPO
-
-cd stable-diffusion/docker-build
-chmod +x entrypoint.sh
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
+cd ~  && mkdir docker-build && cd docker-build
+# TODO: Change permalinks to main branch once it's merged
+wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/Dockerfile 
+wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/entrypoint.sh && chmod +x entrypoint.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O anaconda.sh && chmod +x anaconda.sh
 
 docker build -t $DOCKER_IMAGE_TAG \
 --platform $PLATFORM \
