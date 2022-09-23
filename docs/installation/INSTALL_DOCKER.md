@@ -1,7 +1,6 @@
 Table of Contents
 =================
 <!--ts-->
-* [Table of Contents](#table-of-contents)
 * [Before you begin](#before-you-begin)
 * [Why containers?](#why-containers)
 * [Prerequisites](#prerequisites)
