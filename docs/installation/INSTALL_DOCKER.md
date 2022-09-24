@@ -44,10 +44,10 @@ wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pt
 
 # Option A - Local deployment 
  
-This example shows a local deployment on a Mac with Apple silicon. This scenario is currently working on the branch specified in ```CLONE_OPTIONS```. Other scenarios should work on the main branch of the repo.  
+This example shows a local deployment on a Mac with Apple silicon. Due to a change in how GFPGAN is installed, this Apple silicon scenario uses the branch specified in ```CLONE_OPTIONS```. Other scenarios use the default branch of the repo.  
 
 If your system is different adjust:  
-- The platform to ```amd64``` (x86-64/Intel) or ```arm64``` (aarch64) depending on your architecture.
+- The platform to ```amd64``` (x86-64/Intel) or ```arm64``` (aarch64/ARM/Apple chip) depending on your architecture.
 - The ```CONDA_SUBDIR``` variable to ```osx-64``` or ```osx-arm64``` for macOS; empty for a Linux amd64 host.
 - Use the requirements file that matches your OS/architecture.
 
@@ -60,7 +60,7 @@ On the Docker Desktop app, go to Preferences, Resources, Advanced. Increase the 
 DOCKER_IMAGE_TAG="santisbon/stable-diffusion"
 PLATFORM="linux/arm64"
 REPO="https://github.com/santisbon/stable-diffusion.git"
-# TODO: set to empty once merged into main.
+REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
 CLONE_OPTIONS="-b orig-gfpgan "
 REQS_FILE="requirements-linux-arm64.txt"
 CONDA_SUBDIR="osx-arm64"
@@ -79,9 +79,10 @@ docker cp GFPGANv1.3.pth dummy:/data
 
 cd ~  && mkdir docker-build && cd docker-build
 # Get the build files and the Miniconda installer that matches your container OS and architecture (we'll need it at build time).
-# TODO: Grab the build files from the orig-gfpgan branch for an M1/M2 host
-wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/Dockerfile 
-wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/entrypoint.sh && chmod +x entrypoint.sh
+# These are from the orig-gfpgan branch for an M1/M2 host. Replace with the files from main if you're not on M1/M2.
+wget $REPO_PATH/fc354a6ecae2a7685017495194a6880f87d6715e/docker-build/Dockerfile
+wget $REPO_PATH/fc354a6ecae2a7685017495194a6880f87d6715e/docker-build/entrypoint.sh && chmod +x entrypoint.sh
+
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
 
 docker build -t $DOCKER_IMAGE_TAG \
@@ -120,6 +121,7 @@ We will use:
 **On your laptop**
 ```Shell
 REPO="https://github.com/santisbon/stable-diffusion"
+REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
 REGION="us-east-1"
 MY_KEY="awsec2.pem"
 BUCKET="invoke-ai"
@@ -152,7 +154,7 @@ aws ssm put-parameter --type "String" \
 
 cd ~  && mkdir docker-build && cd docker-build
 # TODO: Change permalinks to main branch once it's merged
-wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/aws-infra.yaml
+wget $REPO_PATH/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/aws-infra.yaml
 
 aws cloudformation create-stack \
 --stack-name ai \
@@ -179,6 +181,7 @@ ssh -i ~/.ssh/$MY_KEY ubuntu@$INSTANCE_PUBLIC_DNS
 **On the cloud instance**
 ```Shell
 REPO="https://github.com/santisbon/stable-diffusion"
+REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
 # TODO: set to empty once merged into main.
 CLONE_OPTIONS="-b cloud-container "
 # Change the tag to your own.
@@ -188,8 +191,8 @@ REQS_FILE="requirements-lin.txt"
 
 cd ~  && mkdir docker-build && cd docker-build
 # TODO: Change permalinks to main branch once it's merged
-wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/Dockerfile 
-wget $REPO/blob/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/entrypoint.sh && chmod +x entrypoint.sh
+wget $REPO_PATH/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/Dockerfile 
+wget $REPO_PATH/6c54d94e06a9efbfdc502a862219aa5ceb01ba9e/docker-build/entrypoint.sh && chmod +x entrypoint.sh
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O anaconda.sh && chmod +x anaconda.sh
 
 docker build -t $DOCKER_IMAGE_TAG \
