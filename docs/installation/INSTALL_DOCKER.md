@@ -90,7 +90,7 @@ You'll need to experiment to see if face restoration is making it better or wors
 
 The output is set to the mount point. You can copy it wherever you want.  
 
-If you're on a local installation using a Docker volume you can download the images from the Docker Desktop app, Volumes, my-vol, data. Or you can copy it from your terminal. Keep in mind ```docker cp``` can't expand ```*.png``` so you'll need to specify the image file name.  
+If you're on a local installation using a Docker volume you can download the images from the Docker Desktop app. Or you can copy it from your terminal. Keep in mind ```docker cp``` can't expand ```*.png``` so you'll need to specify the image file name.  
 
 **On your laptop (you can use the name of any container that mounted the volume)**:
 ```Shell
