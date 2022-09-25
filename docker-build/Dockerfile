@@ -55,5 +55,6 @@ WORKDIR     /stable-diffusion
 RUN         python3 scripts/preload_models.py         
 
 WORKDIR     /
-COPY        entrypoint.sh .
-ENTRYPOINT ["/entrypoint.sh"]
+CMD         ["python3", "scripts/dream.py", "--full_precision", "-o /data"]
+#COPY        entrypoint.sh .
+#ENTRYPOINT ["/entrypoint.sh"]
