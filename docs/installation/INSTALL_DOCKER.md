@@ -50,7 +50,7 @@ wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile
 wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
 
-docker compose create
+docker compose -p invoke-ai-project create
 
 docker cp ~/Downloads/sd-v1-4.ckpt invoke-ai:/data
 docker cp ~/Downloads/GFPGANv1.3.pth invoke-ai:/data
