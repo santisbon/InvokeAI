@@ -43,4 +43,4 @@ RUN         source ~/.bashrc \
             && ln -s "/data/GFPGANv1.3.pth" experiments/pretrained_models/GFPGANv1.3.pth
             && python3 scripts/preload_models.py 
 
-CMD         ["python3", "/stable-diffusion/scripts/dream.py", "--full_precision", "-o /data"]
+CMD         ["python3", "/stable-diffusion/scripts/dream.py", "--full_precision", "/data/outputs/img-samples/"]

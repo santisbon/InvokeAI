@@ -63,17 +63,21 @@ wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile
 wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
 
+# Creates containers for a service
 docker compose -p invoke-ai-project create
 
+# Copy files to the volume
 docker cp ~/Downloads/sd-v1-4.ckpt invoke-ai:/data
 docker cp ~/Downloads/GFPGANv1.3.pth invoke-ai:/data
 
-# Start the container
+# Start services
 docker compose -p invoke-ai-project start
 # Connect to the running container:
 docker exec -it invoke-ai bash
-# Stop the container
+# Stop services
 docker compose -p invoke-ai-project stop
+# Stop and remove containers, networks
+docker compose -p invoke-ai-project down
 ```
 
 # Usage 
@@ -84,7 +88,7 @@ Time to have fun
 With the Conda environment activated (```conda activate ldm```) use the more accurate but VRAM-intensive full precision math.  
 By default the images are saved in ```outputs/img-samples/```. Set the output dir to the mount point: 
 ```Shell
-python3 scripts/dream.py --full_precision -o /data
+python3 scripts/dream.py --full_precision -o /data/outputs/img-samples/
 ```
 
 You'll get the script's prompt. You can see available options or quit.
