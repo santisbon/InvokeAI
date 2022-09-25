@@ -1,6 +1,19 @@
 Table of Contents
 =================
 <!--ts-->
+* [Table of Contents](#table-of-contents)
+* [Before you begin](#before-you-begin)
+* [Why containers?](#why-containers)
+* [Prerequisites](#prerequisites)
+* [Deploy to Docker on local machine](#deploy-to-docker-on-local-machine)
+   * [Install <a href="https://github.com/santisbon/guides/blob/main/setup/docker.md">Docker</a>](#install-docker)
+   * [Set up the container](#set-up-the-container)
+* [Usage](#usage)
+   * [Startup](#startup)
+   * [Text to Image](#text-to-image)
+   * [Image to Image](#image-to-image)
+   * [Web Interface](#web-interface)
+   * [Notes](#notes)
 <!--te-->
 
 # Before you begin
@@ -50,13 +63,17 @@ wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile
 wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
 
-#docker compose -p invoke-ai-project create
-docker-compose -p invoke-ai-project up --no-start
+docker compose -p invoke-ai-project create
 
 docker cp ~/Downloads/sd-v1-4.ckpt invoke-ai:/data
 docker cp ~/Downloads/GFPGANv1.3.pth invoke-ai:/data
 
-docker compose start
+# Start the container
+docker compose -p invoke-ai-project start
+# Connect to the running container:
+docker exec -it invoke-ai bash
+# Stop the container
+docker compose -p invoke-ai-project stop
 ```
 
 # Usage 
@@ -65,7 +82,7 @@ Time to have fun
 ## Startup
 
 With the Conda environment activated (```conda activate ldm```) use the more accurate but VRAM-intensive full precision math.  
-By default the images are saved in ```outputs/img-samples/```. Set the output dir to the mount point you created: 
+By default the images are saved in ```outputs/img-samples/```. Set the output dir to the mount point: 
 ```Shell
 python3 scripts/dream.py --full_precision -o /data
 ```
