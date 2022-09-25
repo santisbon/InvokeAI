@@ -3,6 +3,7 @@ version: "3.7"
 services:
   invokeai:
     image: santisbon/invoke-ai
+    command: tail -f /dev/null
     platform: linux/arm64
     container_name: invoke-ai
     hostname: invoke-ai
