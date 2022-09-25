@@ -59,48 +59,6 @@ docker cp ~/Downloads/GFPGANv1.3.pth invoke-ai:/data
 docker compose start
 ```
 
-```Shell
-DOCKER_IMAGE_TAG="santisbon/stable-diffusion"
-PLATFORM="linux/arm64"
-REPO="https://github.com/santisbon/stable-diffusion.git"
-REPO_BRANCH="orig-gfpgan"
-REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
-CLONE_OPTIONS="-b $REPO_BRANCH "
-REQS_FILE="requirements-linux-arm64.txt"
-CONDA_SUBDIR="osx-arm64"
-
-# Create a Docker volume for the downloaded model files.
-docker volume create my-vol
-
-# You just need to create the container with the mountpoint; no need to run this dummy container. 
-docker create --platform $PLATFORM --name dummy --mount source=my-vol,target=/data alpine 
-
-cd ~/Downloads # or wherever you saved the files
-# Copy the data files to the Docker volume using a lightweight Linux container. We'll need the models at run time. 
-docker cp sd-v1-4.ckpt dummy:/data
-docker cp GFPGANv1.3.pth dummy:/data
-
-cd ~  && mkdir -p docker-build && cd docker-build
-# Get the build files and the Miniconda installer that matches your container OS and architecture (we'll need it at build time).
-wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile
-wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
-
-docker build -t $DOCKER_IMAGE_TAG \
---platform $PLATFORM \
---build-arg gsd=$CLONE_OPTIONS$REPO \
---build-arg rsd=$REQS_FILE \
---build-arg cs=$CONDA_SUBDIR .
-
-docker run -it \
---rm \
---platform $PLATFORM \
---name invoke-ai \
---hostname invoke-ai \
---mount source=my-vol,target=/data \
-$DOCKER_IMAGE_TAG
-```
-
 # Usage 
 Time to have fun
 
