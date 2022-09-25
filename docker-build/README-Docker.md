@@ -55,12 +55,12 @@ docker compose -p invoke-ai-project create
 docker cp ~/Downloads/sd-v1-4.ckpt invoke-ai:/data
 docker cp ~/Downloads/GFPGANv1.3.pth invoke-ai:/data
 
+# Start the container
 docker compose -p invoke-ai-project start
-
-# To keep a container running use this as the container command: 
-# tail -f /dev/null
-# and connecting to it later use the container_name:
-# docker exec -it invoke-ai bash
+# Connect to the running container:
+docker exec -it invoke-ai bash
+# Stop the container
+docker compose -p invoke-ai-project stop
 ```
 
 # Usage 
@@ -69,7 +69,7 @@ Time to have fun
 ## Startup
 
 With the Conda environment activated (```conda activate ldm```) use the more accurate but VRAM-intensive full precision math.  
-By default the images are saved in ```outputs/img-samples/```. Set the output dir to the mount point you created: 
+By default the images are saved in ```outputs/img-samples/```. Set the output dir to the mount point: 
 ```Shell
 python3 scripts/dream.py --full_precision -o /data
 ```
