@@ -54,4 +54,4 @@ RUN         pip3 install -r requirements.txt \
 WORKDIR     /stable-diffusion 
 RUN         python3 scripts/preload_models.py         
 
-CMD         ["python3", "scripts/dream.py", "--full_precision", "-o /data"]
+CMD         ["python3", "/stable-diffusion/scripts/dream.py", "--full_precision", "-o /data"]
