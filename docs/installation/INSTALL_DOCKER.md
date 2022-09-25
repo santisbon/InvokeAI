@@ -25,14 +25,14 @@ cd ~/Downloads
 wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth
 ```
 
-# Docker on local machine 
+# Deploy to Docker on local machine 
  
-This example shows a local deployment on a Mac with Apple silicon. Due to a change in how GFPGAN is installed, this Apple silicon scenario uses (for now) a branch on this fork from before that refactoring took place. Other local scenarios have not been tested but may work with the appropriate requirements file.  
+This example shows a local deployment on a Mac with Apple silicon. Due to a change in how GFPGAN is installed, this Apple silicon scenario uses (for now) a branch on this fork from before that refactoring took place. 
 
-If your system is different adjust:  
-- The platform to ```amd64``` (x86-64/Intel) or ```arm64``` (aarch64/ARM/Apple chip) depending on your architecture.
-- The ```CONDA_SUBDIR``` variable to ```osx-64``` or ```osx-arm64``` for macOS; empty for a Linux amd64 host.
-- Use the requirements file that matches your OS/architecture.
+**Other local scenarios have not been tested** but may work with the appropriate configuration changes in ```docker-compose.yml```, ```Dockerfile``` and in these instructions.  
+- The platform - ```amd64``` (x86-64/Intel) or ```arm64``` (aarch64/ARM/Apple chip) depending on your architecture.
+- The ```CONDA_SUBDIR``` variable - ```osx-64``` or ```osx-arm64``` for macOS; empty for a Linux amd64 host.
+- Use the requirements file and Miniconda installer that match your OS/architecture.
 
 ## Install [Docker](https://github.com/santisbon/guides/blob/main/setup/docker.md)  
 On the Docker Desktop app, go to Preferences, Resources, Advanced. Increase the CPUs and Memory to avoid this [Issue](https://github.com/invoke-ai/InvokeAI/issues/342). You may need to increase Swap and Disk image size too.  
@@ -45,7 +45,6 @@ REPO_BRANCH="orig-gfpgan"
 REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
 
 cd ~  && mkdir -p docker-build && cd docker-build
-# Get the build files and the Miniconda installer that matches your container OS and architecture (we'll need it at build time).
 wget $REPO_PATH/$REPO_BRANCH/docker-build/docker-compose.yml
 wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile
 wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
@@ -146,19 +145,4 @@ The original scripts should work as well.
 ```Shell
 python3 scripts/orig_scripts/txt2img.py --help
 python3 scripts/orig_scripts/txt2img.py --ddim_steps 5 --n_iter 1 --n_samples 1  --plms --prompt "ocean" # or --klms
-```
-
-# Troubleshooting
-
-- The container on the cloud instance can't find the model files.
-Make sure you followed the steps to mount the S3 bucket on the Docker host as a directory. Verify with:  
-**On the cloud instance**
-```Shell
-# View contents of the dir mounted on the host (should match the S3 bucket).
-ls /mnt/ai-data
-```
-**On the container**
-```Shell
-# View contents of the dir mounted on the container (should match the S3 bucket).
-ls /data
 ```

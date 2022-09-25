@@ -120,3 +120,18 @@ $DOCKER_IMAGE_TAG
 ```Shell
 python3 scripts/dream.py --full_precision -o /data
 ```
+
+# Troubleshooting
+
+- The container on the cloud instance can't find the model files.
+Make sure you followed the steps to mount the S3 bucket on the Docker host as a directory. Verify with:  
+**On the cloud instance**
+```Shell
+# View contents of the dir mounted on the host (should match the S3 bucket).
+ls /mnt/ai-data
+```
+**On the container**
+```Shell
+# View contents of the dir mounted on the container (should match the S3 bucket).
+ls /data
+```
