@@ -19,7 +19,8 @@ services:
         cs: osx-arm64
     volumes:
       - type: volume
-        source: my-vol
+        source: invoke-ai-data
         target: /data
 volumes:
-  my-vol:
+  invoke-ai-data:
+    name: "invoke-ai-data"
