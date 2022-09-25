@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  invokeai:
+    image: santisbon/invoke-ai
+    platform: linux/arm64
+    container_name: invoke-ai
+    hostname: invoke-ai
+    build:
+      context: .
+      tags:
+        - santisbon/invoke-ai
+      platforms:
+        - linux/arm64
+      dockerfile: Dockerfile
+      args:
+        gsd: "-b orig-gfpgan https://github.com/santisbon/stable-diffusion.git"
+        rsd: requirements-linux-arm64.txt
+        cs: osx-arm64
+    volumes:
+      - type: volume
+        source: my-vol
+        target: /data
+volumes:
+  my-vol:
