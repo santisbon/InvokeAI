@@ -36,9 +36,6 @@ docker compose push
 ```
 
 You can use ```convert``` to generate a CloudFormation stack file from your Compose file to inspect resources or customize the template. You can define an *overlay* .yml file with only the attributes to be updated or added. It will be merged with the generated template before being applied to the AWS infrastructure. Then apply the template to AWS using the AWS CLI specifying your template files.  
-```Shell
-docker compose -f docker-compose-cloud.yml convert > cfn-output.yml
-```
 
 Note that cloud resources like instances and file systems have a cost so **make sure you understand AWS pricing** before launching this environment on the cloud.
 
@@ -55,6 +52,9 @@ docker context create ecs --local-simulation ecsLocal
 # Create an ECS Docker context
 docker context create ecs myecscontext
 docker context use myecscontext
+
+# Generate CloudFormation template for inspection or customization
+docker compose -f docker-compose-cloud.yml convert > cfn-output.yml
 
 docker compose -p invoke-ai-project -f docker-compose-cloud.yml create
 
