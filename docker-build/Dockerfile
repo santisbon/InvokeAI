@@ -40,7 +40,7 @@ RUN         source ~/.bashrc \
             && mkdir models/ldm/stable-diffusion-v1 \
             && mkdir -p src/gfpgan/experiments/pretrained_models \
             && ln -s "/data/sd-v1-4.ckpt" models/ldm/stable-diffusion-v1/model.ckpt \
-            && ln -s "/data/GFPGANv1.3.pth" experiments/pretrained_models/GFPGANv1.3.pth \
+            && ln -s "/data/GFPGANv1.3.pth" src/gfpgan/experiments/pretrained_models/GFPGANv1.3.pth \
             && python3 scripts/preload_models.py 
 
 CMD         ["python3", "/stable-diffusion/scripts/dream.py", "--full_precision", "-o /data/outputs/img-samples/"]
