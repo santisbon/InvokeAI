@@ -3,7 +3,7 @@ Table of Contents
 <!--ts-->
 <!--te-->
 
-# Docker on a cloud instance
+# Containers in the cloud
  
 We'll use a cloud environment to illustrate the process of deploying to a container on an **amd**64 machine that can use CUDA with an NVIDIA GPU.  
 
@@ -11,114 +11,59 @@ For flexibility on our choice of container registry and other aspects, we'll use
 
 This example uses [AWS](https://aws.amazon.com/) but the concepts should translate to other environments. You'll need an AWS account. Make sure you have the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and configured with AWS credentials with ```AdministratorAccess```. Then follow this guide.  
 
-## Set up the cloud instance
+# Using native Docker commands to run apps in Amazon ECS
 
-We will use:  
-- The Deep Learning AMI with Ubuntu. It includes NVIDIA CUDA, Docker, and NVIDIA-Docker.  
-- A [GPU-based instance](https://docs.aws.amazon.com/dlami/latest/devguide/gpu.html) optimized for machine learning. Note that these have a cost so make sure you understand the pricing for [G4](https://aws.amazon.com/ec2/instance-types/g4/) and [G5](https://aws.amazon.com/ec2/instance-types/g5/) instances.
-- S3 Standard for storage. Make sure you understand [S3 pricing](https://aws.amazon.com/s3/pricing/).
-- The default subnet on the default VPC.
-- SSM Parameter Store so we can retrieve configuration parameters while creating or updating the infrastructure.  
-- SSH to connect to the instance with an RSA key that we'll create.
+Docker ECS integration converts the Compose application model into a set of AWS resources, described as a CloudFormation template. By default:
+- The Compose application becomes an ECS cluster.
+- Services using a GPU (```DeviceRequest```) get the Cluster extended with an EC2 ```CapacityProvider``` using an ```AutoscalingGroup``` based on a ```LaunchConfiguration```. The latter uses an ECS recommended AMI and machine type for GPU.
+- Service discovery is done through AWS Cloud Map. 
+- Service isolation is implemented by EC2 Security Groups (one per network) on your default VPC. 
+- If you expose ports, a LoadBalancer routes traffic to your services.
+- Volumes are based on Amazon EFS.
 
-**On your laptop**
+Validate your compose file with ```docker-compose config``` (not to be confused with ```docker compose config```).  
+To deploy to ECS your image must be stored in a public registry like Docker Hub.
 ```Shell
-REPO="https://github.com/santisbon/stable-diffusion.git"
-# TODO: Change to main branch once it's merged
-REPO_BRANCH="cloud-container"
-REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
-REGION="us-east-1"
-MY_KEY="awsec2.pem"
-BUCKET="invoke-ai"
-AMI="$(aws ec2 describe-images \
---region $REGION \
---owners amazon \
---filters 'Name=name,Values=Deep Learning AMI (Ubuntu 18.04) Version ??.?' \
-          'Name=state,Values=available' \
---query 'reverse(sort_by(Images, &CreationDate))[0].ImageId' | tr -d  '"')"
-
-mkdir -p ~/.ssh/
-aws ec2 create-key-pair --region $REGION --key-name $MY_KEY --query 'KeyMaterial' | tr -d  '"' > ~/.ssh/$MY_KEY
-chmod 400 ~/.ssh/$MY_KEY
-
-aws ssm put-parameter --type "String" --data-type "aws:ec2:image" \
-    --name "ai/ec2/deep-learning-ami" \
-    --value $AMI 
-
-aws ssm put-parameter --type "String" \
-    --name "ai/ec2/instance-type-dev" \
-    --value "g4dn.xlarge" 
-
-aws ssm put-parameter --type "String" \
-    --name "ai/ec2/instance-type-prod" \
-    --value "g5.xlarge" 
-
-aws ssm put-parameter --type "String" \
-    --name "ai/ec2/key-name" \
-    --value $MY_KEY 
-
-cd ~  && mkdir docker-build && cd docker-build
-
-wget $REPO_PATH/$REPO_BRANCH/docker-build/aws-infra.yaml
-
-aws cloudformation create-stack \
---stack-name ai \
---template-body file://./aws-infra.yaml  \
---parameters ParameterKey=AmiId,ParameterValue=ai/ec2/deep-learning-ami \
-             ParameterKey=InstanceType,ParameterValue=ai/ec2/instance-type-dev \
-             ParameterKey=KeyName,ParameterValue=ai/ec2/key-name \
-             ParameterKey=BucketName,ParameterValue=$BUCKET \
-             ParameterKey=SSHLocation,ParameterValue=0.0.0.0/0 \
---capabilities CAPABILITY_NAMED_IAM
-
-cd ~/Downloads
-aws s3 cp ./sd-v1-4.ckpt s3://$BUCKET/sd-v1-4.ckpt
-aws s3 cp ./GFPGANv1.3.pth s3://$BUCKET/GFPGANv1.3.pth
-
-INSTANCE_PUBLIC_DNS="$(aws cloudformation describe-stacks --stack-name ai --output json \
---query "Stacks[0].Outputs[?OutputKey=='HostPublicDnsName'].OutputValue | [0]" | tr -d '"')"
-
-ssh -i ~/.ssh/$MY_KEY ubuntu@$INSTANCE_PUBLIC_DNS
+docker-compose -f docker-compose-cloud.yml config # validate
+docker compose -f docker-compose-cloud.yml build
+docker login
+docker compose push
 ```
 
-## Set up the container
-
-**On the cloud instance**
+You can use ```convert``` to generate a CloudFormation stack file from your Compose file to inspect resources or customize the template. You can define an *overlay* .yml file with only the attributes to be updated or added. It will be merged with the generated template before being applied to the AWS infrastructure. Then apply the template to AWS using the AWS CLI specifying your template files.  
 ```Shell
-REPO="https://github.com/santisbon/stable-diffusion.git"
-# TODO: Change to main branch once it's merged
-REPO_BRANCH="cloud-container"
-REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
-# TODO: set to empty once merged into main.
-CLONE_OPTIONS="-b $REPO_BRANCH "
-# Change the tag to your own.
-DOCKER_IMAGE_TAG="santisbon/stable-diffusion"
-PLATFORM="linux/amd64"
-REQS_FILE="requirements-lin.txt"
-
-cd ~  && mkdir docker-build && cd docker-build
-wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile 
-wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O anaconda.sh && chmod +x anaconda.sh
-
-docker build -t $DOCKER_IMAGE_TAG \
---platform $PLATFORM \
---build-arg gsd=$CLONE_OPTIONS$REPO \
---build-arg rsd=$REQS_FILE .
-
-# Mount: source is the host dir and target is the container dir
-docker run -it \
---rm \
---platform $PLATFORM \
---name invoke-ai \
---hostname invoke-ai \
---mount type=bind,source=/mnt/ai-data,target=/data \
-$DOCKER_IMAGE_TAG
+docker compose -f docker-compose-cloud.yml convert > cfn-output.yml
 ```
 
-**On the container**
+Note that cloud resources like instances and file systems have a cost so **make sure you understand AWS pricing** before launching this environment on the cloud.
+
+You can see the current contexts e.g. Docker Engine (default) and Docker Desktop (desktop-linux)
 ```Shell
-python3 scripts/dream.py --full_precision -o /data
+docker context ls
+```
+If your app uses an AWS SDK it retrieves temporary AWS API credentials at runtime from a metadata service. This makes local testing difficult so there's an option to create a local simulation ecs context. This allows the AWS SDK used by your app code to access a local mock container as "AWS metadata API" and retrieve credentials from you own local ```.aws/credentials``` config file. Under this context Compose doesn't deploy your app on ECS so you must run it locally.
+```Shell
+docker context create ecs --local-simulation ecsLocal
+```
+
+```Shell
+# Create an ECS Docker context
+docker context create ecs myecscontext
+docker context use myecscontext
+
+docker compose -p invoke-ai-project -f docker-compose-cloud.yml create
+
+#TODO: Copy files to the volume (EFS)
+
+# Start services
+docker compose -p invoke-ai-project -f docker-compose-cloud.yml start
+# Connect to the running container:
+docker exec -it invoke-ai bash
+# Stop services
+docker compose -p invoke-ai-project -f docker-compose-cloud.yml stop
+# Stop and remove containers, networks
+docker compose -p invoke-ai-project -f docker-compose-cloud.yml down
+
 ```
 
 # Troubleshooting

@@ -14,6 +14,15 @@ services:
         gsd: "-b orig-gfpgan https://github.com/santisbon/stable-diffusion.git"
         rsd: requirements-linux-arm64.txt
         cs: osx-arm64
+    deploy:
+      resources:
+        reservations:
+          memory: 12Gb
+          cpus: "4"
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     volumes:
       - type: volume
         source: invoke-ai-data
@@ -21,3 +30,6 @@ services:
 volumes:
   invoke-ai-data:
     name: "invoke-ai-data"
+    driver_opts:
+      uid: 0
+      gid: 0
