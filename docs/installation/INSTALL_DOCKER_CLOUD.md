@@ -21,6 +21,11 @@ Docker ECS integration converts the Compose application model into a set of AWS 
 - If you expose ports, a LoadBalancer routes traffic to your services.
 - Volumes are based on Amazon EFS.
 
+```Shell
+# TODO: Download only the dockerbuild files needed 
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O anaconda.sh && chmod +x anaconda.sh
+```
+
 Validate your compose file with ```docker-compose config``` (not to be confused with ```docker compose config```).  
 To deploy to ECS your image must be stored in a public registry like Docker Hub.
 ```Shell
