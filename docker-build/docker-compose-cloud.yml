@@ -4,16 +4,16 @@ services:
   invokeai:
     image: santisbon/invoke-ai
     command: tail -f /dev/null
-    platform: linux/arm64
+    platform: linux/amd64
     container_name: invoke-ai
     hostname: invoke-ai
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        gsd: "-b orig-gfpgan https://github.com/santisbon/stable-diffusion.git"
-        rsd: requirements-linux-arm64.txt
-        cs: osx-arm64
+        gsd: "https://github.com/santisbon/stable-diffusion.git"
+        rsd: requirements-lin.txt
+        cs: 
     deploy:
       resources:
         reservations:
