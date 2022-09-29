@@ -18,7 +18,7 @@ services:
       resources:
         reservations:
           memory: 12Gb
-          cpus: "4"
+          cpus: "1"
           devices:
             - driver: nvidia
               count: 1
@@ -27,6 +27,18 @@ services:
       - type: volume
         source: invoke-ai-data
         target: /data
+x-aws-cloudformation:
+  Resources:
+    LaunchConfiguration:
+      Properties:
+        KeyName: invokeaiec2
+    DefaultNetwork:
+      Properties:
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
 volumes:
   invoke-ai-data:
     name: "invoke-ai-data"
