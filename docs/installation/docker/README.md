@@ -1,25 +1,24 @@
 Table of Contents
 =================
 <!--ts-->
-* [Table of Contents](#table-of-contents)
 * [Before you begin](#before-you-begin)
 * [Why containers?](#why-containers)
 * [Prerequisites](#prerequisites)
-* [Deploy to Docker on local machine](#deploy-to-docker-on-local-machine)
-   * [Install <a href="https://github.com/santisbon/guides/blob/main/setup/docker.md">Docker</a>](#install-docker)
-   * [Set up the container](#set-up-the-container)
+* [Local deplyment](#local-deplyment)
+* [Cloud deployment](#cloud-deployment)
 * [Usage](#usage)
    * [Startup](#startup)
    * [Text to Image](#text-to-image)
    * [Image to Image](#image-to-image)
-   * [Web Interface](#web-interface)
    * [Notes](#notes)
 <!--te-->
 
 # Before you begin
 
 - End users: Install locally (no containers) using the installation doc for your OS.
-- Developers: For general use on a Mac M1/M2 install locally (no containers) to leverage your GPU cores. For enabling easy deployment to other environments (on-premises or cloud), follow these instructions.  
+- Developers: 
+    - For general use on a Mac M1/M2 install locally (no containers) to leverage your GPU cores. 
+    - For enabling easy deployment to other environments (on-premises or cloud), follow these instructions to install on Docker containers.  
 
 # Why containers?
 
@@ -38,50 +37,13 @@ cd ~/Downloads
 wget https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth
 ```
 
-# Deploy to Docker on local machine 
- 
-This example shows a local deployment on a Mac with Apple silicon. Due to a change in how GFPGAN is installed, this Apple silicon scenario uses (for now) a branch on this fork from before that refactoring took place. 
+# Local deplyment
+See [Docker local deployment](/docs/installation/docker/local.md).
 
-**Other local scenarios have not been tested** but may work with the appropriate configuration changes in ```docker-compose.yml```, ```Dockerfile``` and in these instructions.  
-- The platform - ```amd64``` (x86-64/Intel) or ```arm64``` (aarch64/ARM/Apple chip) depending on your architecture.
-- The ```CONDA_SUBDIR``` variable - ```osx-64``` or ```osx-arm64``` for macOS; empty for a Linux amd64 host.
-- Use the requirements file and Miniconda installer that match your OS/architecture.
-
-## Install [Docker](https://github.com/santisbon/guides/blob/main/setup/docker.md)  
-On the Docker Desktop app, go to Preferences, Resources, Advanced. Increase the CPUs and Memory to avoid this [Issue](https://github.com/invoke-ai/InvokeAI/issues/342). You may need to increase Swap and Disk image size too.  
-
-## Set up the container
-
-```Shell
-REPO="https://github.com/santisbon/stable-diffusion.git"
-REPO_BRANCH="orig-gfpgan"
-REPO_PATH="$(echo $REPO | sed 's/\.git//' | sed 's/github/raw\.githubusercontent/')"
-
-cd ~  && mkdir -p docker-build && cd docker-build
-wget $REPO_PATH/$REPO_BRANCH/docker-build/docker-compose.yml
-wget $REPO_PATH/$REPO_BRANCH/docker-build/Dockerfile
-wget $REPO_PATH/$REPO_BRANCH/docker-build/entrypoint.sh && chmod +x entrypoint.sh
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O anaconda.sh && chmod +x anaconda.sh
-
-# Creates containers for a service
-docker compose -p invoke-ai-project create
-
-# Copy files to the volume
-docker cp ~/Downloads/sd-v1-4.ckpt invoke-ai:/data
-docker cp ~/Downloads/GFPGANv1.3.pth invoke-ai:/data
-
-# Start services
-docker compose -p invoke-ai-project start
-# Connect to the running container:
-docker exec -it invoke-ai bash
-# Stop services
-docker compose -p invoke-ai-project stop
-# Stop and remove containers, networks
-docker compose -p invoke-ai-project down
-```
+# Cloud deployment
+See [Docker cloud deployment](/docs/installation/docker/cloud.md).
 
 # Usage 
-Time to have fun
 
 ## Startup
 
@@ -107,24 +69,7 @@ dream> "woman closeup highly detailed"  -s 150
 # Reuse previous seed and apply face restoration
 dream> "woman closeup highly detailed"  --steps 150 --seed -1 -G 0.75 
 ```
-
 You'll need to experiment to see if face restoration is making it better or worse for your specific prompt.
-
-The output is set to the mount point. You can copy it wherever you want.  
-
-If you're on a local installation using a Docker volume you can download the images from the Docker Desktop app. Or you can copy it from your terminal. Keep in mind ```docker cp``` can't expand ```*.png``` so you'll need to specify the image file name.  
-
-**On your laptop (you can use the name of any container that mounted the volume)**:
-```Shell
-docker cp dummy:/data/000001.928403745.png /Users/<your-user>/Pictures 
-```
-
-If you're on a cloud instance using S3 as storage you can copy the files from the bucket to your laptop.
-**On your laptop**
-```Shell
-cd ~/Pictures
-aws s3 cp s3://$BUCKET/000001.928403745.png 000001.928403745.png
-```
 
 ## Image to Image
 You can also do text-guided image-to-image translation. For example, turning a sketch into a detailed drawing.  
@@ -133,28 +78,10 @@ You can also do text-guided image-to-image translation. For example, turning a s
 
 Make sure your input image size dimensions are multiples of 64 e.g. 512x512. Otherwise you'll get ```Error: product of dimension sizes > 2**31'```. If you still get the error [try a different size](https://support.apple.com/guide/preview/resize-rotate-or-flip-an-image-prvw2015/mac#:~:text=image's%20file%20size-,In%20the%20Preview%20app%20on%20your%20Mac%2C%20open%20the%20file,is%20shown%20at%20the%20bottom.) like 512x256.  
 
-Depending on your storage solution, copy your input image into the Docker volume (local deployment) or S3 bucket (cloud deployment).
-On your laptop
-```Shell
-docker cp /Users/<your-user>/Pictures/sketch-mountains-input.jpg dummy:/data/
-# or
-aws s3 cp ~/Pictures/sketch-mountains-input.jpg s3://$BUCKET/sketch-mountains-input.jpg
-```
-
 Try it out generating an image (or more).  
 ```Shell
 dream> "A fantasy landscape, trending on artstation" -I /data/sketch-mountains-input.jpg --strength 0.75  --steps 50 -n1
 ```
-
-## Web Interface
-Only for local installations running directly on your laptop (not containers).  
-You can use the ```dream``` script with a graphical web interface. Start the web server with:
-```Shell
-python3 scripts/dream.py --full_precision --web
-```
-Point your web browser to http://127.0.0.1:9090  
-
-Press Control-C at the command line to stop the web server.
 
 ## Notes
 

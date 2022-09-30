@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation template for S3 bucket that will temporarily store the Invoke AI model files so we can populate the EFS filesystem with them.'
+Parameters:
+  BucketName:
+    Description: Bucket for storing model files and outputs
+    Type: String
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName: 
+        Ref: BucketName
