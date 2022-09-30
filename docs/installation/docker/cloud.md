@@ -57,73 +57,103 @@ ls -al ~/.ssh/$MY_KEY".pem"
 
 # Create and start containers
 docker compose -p invoke-ai-project -f docker-compose-cloud.yml up
+```
 
+Ignore the ```unsupported attribute``` warnings. After about 9 minutes you should see something like this:
+```Shell
++] Running 21/21
+ ⠿ invoke-ai-project                           CreateComplete    494.1s
+ ⠿ InvokeaiTaskExecutionRole                   CreateComplete     21.0s
+ ⠿ EC2InstanceRole                             CreateComplete     20.0s
+ ⠿ InvokeaidataAccessPoint                     CreateComplete      8.0s
+ ⠿ DefaultNetwork                              CreateComplete      9.0s
+ ⠿ LogGroup                                    CreateComplete      3.2s
+ ⠿ CloudMap                                    CreateComplete     51.2s
+ ⠿ InvokeaiTaskRole                            CreateComplete     22.0s
+ ⠿ InvokeaidataNFSMountTargetOnSubnet621e2558  CreateComplete     86.0s
+ ⠿ InvokeaidataNFSMountTargetOnSubnet82b327a9  CreateComplete     82.0s
+ ⠿ InvokeaidataNFSMountTargetOnSubnet6ce68435  CreateComplete     81.0s
+ ⠿ DefaultNetworkIngress                       CreateComplete      1.0s
+ ⠿ InvokeaidataNFSMountTargetOnSubnet7a266f0d  CreateComplete     82.0s
+ ⠿ EC2InstanceProfile                          CreateComplete    134.1s
+ ⠿ InvokeaiTaskDefinition                      CreateComplete      2.9s
+ ⠿ InvokeaiServiceDiscoveryEntry               CreateComplete      1.9s
+ ⠿ LaunchConfiguration                         CreateComplete      3.0s
+ ⠿ AutoscalingGroup                            CreateComplete     34.0s
+ ⠿ CapacityProvider                            CreateComplete      3.0s
+ ⠿ Cluster                                     CreateComplete     10.0s
+ ⠿ InvokeaiService                             CreateComplete    268.0s
+```
+
+SSH into the Docker host instance
+```Shell
 INSTANCE_PUBLIC_DNS="$(aws ec2 describe-instances \
 --filters Name=key-name,Values=$MY_KEY \
 --query 'Reservations[].Instances[].PublicDnsName' \
 --output text)"
 
 ssh -i ~/.ssh/$MY_KEY".pem" ec2-user@$INSTANCE_PUBLIC_DNS
-
 docker ps
-
-```
-
-You should see something like this after about 9 minutes:
-```Shell
-+] Running 21/21
- ⠿ invoke-ai-project                           CreateComplete                                                                                                                                          494.1s
- ⠿ InvokeaiTaskExecutionRole                   CreateComplete                                                                                                                                           21.0s
- ⠿ EC2InstanceRole                             CreateComplete                                                                                                                                           20.0s
- ⠿ InvokeaidataAccessPoint                     CreateComplete                                                                                                                                            8.0s
- ⠿ DefaultNetwork                              CreateComplete                                                                                                                                            9.0s
- ⠿ LogGroup                                    CreateComplete                                                                                                                                            3.2s
- ⠿ CloudMap                                    CreateComplete                                                                                                                                           51.2s
- ⠿ InvokeaiTaskRole                            CreateComplete                                                                                                                                           22.0s
- ⠿ InvokeaidataNFSMountTargetOnSubnet621e2558  CreateComplete                                                                                                                                           86.0s
- ⠿ InvokeaidataNFSMountTargetOnSubnet82b327a9  CreateComplete                                                                                                                                           82.0s
- ⠿ InvokeaidataNFSMountTargetOnSubnet6ce68435  CreateComplete                                                                                                                                           81.0s
- ⠿ DefaultNetworkIngress                       CreateComplete                                                                                                                                            1.0s
- ⠿ InvokeaidataNFSMountTargetOnSubnet7a266f0d  CreateComplete                                                                                                                                           82.0s
- ⠿ EC2InstanceProfile                          CreateComplete                                                                                                                                          134.1s
- ⠿ InvokeaiTaskDefinition                      CreateComplete                                                                                                                                            2.9s
- ⠿ InvokeaiServiceDiscoveryEntry               CreateComplete                                                                                                                                            1.9s
- ⠿ LaunchConfiguration                         CreateComplete                                                                                                                                            3.0s
- ⠿ AutoscalingGroup                            CreateComplete                                                                                                                                           34.0s
- ⠿ CapacityProvider                            CreateComplete                                                                                                                                            3.0s
- ⠿ Cluster                                     CreateComplete                                                                                                                                           10.0s
- ⠿ InvokeaiService                             CreateComplete                                                                                                                                          268.0s
 ```
 
 Now populate EFS with the model files. You only need to do that once.  
 
 # Populate EFS with the model files
+Copy files to the volume (EFS) via the host instance. You need to do this only once.  
 
+**On your local machine**
 ```Shell
-# TODO: Copy files to the volume (EFS) via the host instance. You need to do this only once.
+BUCKET="invoke-ai"
+
+aws cloudformation create-stack \
+--stack-name invoke-ai-uploads \
+--template-body file://docker-build/aws-uploads-infra.yml  \
+--parameters ParameterKey=BucketName,ParameterValue=$BUCKET 
 
 # Copy files to S3 bucket
+aws s3 cp ~/Downloads/GFPGANv1.3.pth s3://$BUCKET/GFPGANv1.3.pth
+aws s3 cp ~/Downloads/sd-v1-4.ckpt s3://$BUCKET/sd-v1-4.ckpt
 
+# Connect to host instance  
+ssh -i ~/.ssh/$MY_KEY".pem" ec2-user@$INSTANCE_PUBLIC_DNS
 
-# Connect to host instance and copy files from S3 into the Docker volume (EFS) 
-# Can you do it directly or first to local dir and then docker cp into the volume? 
-# Is the volume mounted on the host instance or only on the container? findmnt
+sudo yum install unzip
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+```
 
-aws s3 sync s3://mybucket .
+**On the Docker host instance**
+```Shell
+BUCKET="invoke-ai"
+# Copy files from S3 into the Docker volume (EFS).
 
-# -----------------------------------
-# With scp instead of an S3 bucket at say, 129.5KB/s it's too slow for the big model files. GFPGANv1.3.pth took 45 min.
-# -----------------------------------
-# On your local machine
-scp -i ~/.ssh/$MY_KEY".pem" ~/Downloads/GFPGANv1.3.pth ec2-user@$INSTANCE_PUBLIC_DNS:~/
-# On the docker host instance
+# S3FullAccess only for the purposes of this exercise. Do not do this in production
+INSTANCE_ROLE=invoke-ai-project-EC2InstanceRole-1KWMORSDQIC72 # change to the name in your AWS environment
+aws iam attach-role-policy --role-name $INSTANCE_ROLE --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+aws iam list-attached-role-policies --role-name $INSTANCE_ROLE
+
+aws s3 sync s3://$BUCKET . 
+# docker ps to get the container id e.g. 0aabb52fdc37
 docker cp ~/GFPGANv1.3.pth <container-id>:/data
-rm -rf ~/GFPGANv1.3.pth
-# -----------------------------------
+docker cp ~/sd-v1-4.ckpt <container-id>:/data
+rm -rf ~/GFPGANv1.3.pth ~/sd-v1-4.ckpt
+aws s3 rm s3://$BUCKET --recursive
+aws cloudformation delete-stack --stack-name invoke-ai-uploads
+aws iam detach-role-policy --role-name $INSTANCE_ROLE --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
 
 # Verify from the container
 docker exec -it <container-id> bash
+```
+
+**On the container**
+```Shell
 ls /data
+conda activate ldm
+python3 scripts/dream.py --full_precision -o /data/outputs/img-samples/
+# Quick test
+dream> your prompt goes here -s5 -n1  # RuntimeError: expected scalar type BFloat16 but found Float
+dream> q
 ```
 
 # Cleanup

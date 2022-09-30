@@ -18,7 +18,7 @@ services:
       resources:
         reservations:
           memory: 12Gb
-          cpus: "1"
+          cpus: "4"
           devices:
             - driver: nvidia
               count: 1
