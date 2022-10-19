@@ -27,16 +27,18 @@ RUN         apt update && apt upgrade -y \
 
 # Install Anaconda or Miniconda
 COPY        anaconda.sh .
-RUN         bash anaconda.sh -b -u -p /anaconda && /anaconda/bin/conda init bash
+RUN         bash anaconda.sh -b -u -p /anaconda && /anaconda/bin/conda init bash \
+            && rm -rf anaconda.sh
 
-# SD 
 WORKDIR     /stable-diffusion 
 RUN         source ~/.bashrc \
             && [ -z "$CONDA_SUBDIR" ] && unset CONDA_SUBDIR \
-            && conda create -y --name ldm && conda activate ldm \
+            # && conda create -y --name ldm && conda activate ldm \
+            && conda env create -f $REQS && conda activate ldm \
             && [ -z "$CONDA_SUBDIR" ] && echo "CONDA_SUBDIR Empty or unset" || conda config --env --set subdir $CONDA_SUBDIR \
-            && pip3 install -r $REQS \   
-            && pip3 install basicsr facexlib realesrgan \          
+            # && pip3 install -r $REQS \   
+            # && pip3 install basicsr facexlib realesrgan \          
+            && pip3 install basicsr facexlib \
             && mkdir models/ldm/stable-diffusion-v1 \
             && mkdir -p src/gfpgan/experiments/pretrained_models \
             && ln -s "/data/sd-v1-4.ckpt" models/ldm/stable-diffusion-v1/model.ckpt \

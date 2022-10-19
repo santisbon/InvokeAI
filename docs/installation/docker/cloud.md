@@ -92,14 +92,15 @@ INSTANCE_PUBLIC_DNS="$(aws ec2 describe-instances \
 --query 'Reservations[].Instances[].PublicDnsName' \
 --output text)"
 
+# ec2-user for Amazon Linux 2; ubuntu for Ubuntu.
 ssh -i ~/.ssh/$MY_KEY".pem" ec2-user@$INSTANCE_PUBLIC_DNS
-docker ps
 ```
 
 Now populate EFS with the model files. You only need to do that once.  
 
 # Populate EFS with the model files
 Copy files to the volume (EFS) via the host instance. You need to do this only once.  
+Note: In production you would probably do this with [AWS DataSync](https://docs.aws.amazon.com/efs/latest/ug/transfer-data-to-efs.html) but we'll keep it simple here and use an S3 bucket as the intermediary to get the files into EFS.
 
 **On your local machine**
 ```Shell
@@ -114,7 +115,7 @@ aws cloudformation create-stack \
 aws s3 cp ~/Downloads/GFPGANv1.3.pth s3://$BUCKET/GFPGANv1.3.pth
 aws s3 cp ~/Downloads/sd-v1-4.ckpt s3://$BUCKET/sd-v1-4.ckpt
 
-# Connect to host instance  
+# Connect to host instance (ec2-user or ubuntu)
 ssh -i ~/.ssh/$MY_KEY".pem" ec2-user@$INSTANCE_PUBLIC_DNS
 
 sudo yum install unzip
@@ -141,14 +142,71 @@ rm -rf ~/GFPGANv1.3.pth ~/sd-v1-4.ckpt
 aws s3 rm s3://$BUCKET --recursive
 aws cloudformation delete-stack --stack-name invoke-ai-uploads
 aws iam detach-role-policy --role-name $INSTANCE_ROLE --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+```
 
-# Verify from the container
+# Test
+
+**On the Docker host instance**
+```Shell
+docker ps
 docker exec -it <container-id> bash
+
+nvidia-smi
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 470.57.02    Driver Version: 470.57.02    CUDA Version: 11.4     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla T4            Off  | 00000000:00:1E.0 Off |                    0 |
+| N/A   37C    P0    26W /  70W |      0MiB / 15109MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
+
+
 ```
 
 **On the container**
 ```Shell
+# Verify EFS mountpoint
 ls /data
+
+# Verify NVIDIA info
+# With Amazon Linux 2 AMI.
+uname -a
+Linux ip-172-31-59-77.ec2.internal 4.14.291-218.527.amzn2.x86_64 \#1 SMP Fri Aug 26 09:54:31 UTC 2022 x86_64 GNU/Linux
+
+nvidia-smi
+
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 470.57.02    Driver Version: 470.57.02    CUDA Version: N/A      |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Tesla T4            Off  | 00000000:00:1E.0 Off |                    0 |
+| N/A   26C    P0    25W /  70W |      0MiB / 15109MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
+
 conda activate ldm
 python3 scripts/dream.py --full_precision -o /data/outputs/img-samples/
 # Quick test

@@ -12,7 +12,7 @@ services:
       dockerfile: Dockerfile
       args:
         gsd: "https://github.com/santisbon/stable-diffusion.git"
-        rsd: requirements-lin.txt
+        rsd: environment.yaml
         cs: 
     deploy:
       resources:
@@ -32,6 +32,7 @@ x-aws-cloudformation:
     LaunchConfiguration:
       Properties:
         KeyName: invokeaiec2
+        # ImageId: ami-0bb8ae1f49276daea
     DefaultNetwork:
       Properties:
         SecurityGroupIngress:
