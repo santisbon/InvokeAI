@@ -106,7 +106,7 @@ class DDPM(pl.LightningModule):
         ], 'currently only supporting "eps" and "x0"'
         self.parameterization = parameterization
         print(
-            f'{self.__class__.__name__}: Running in {self.parameterization}-prediction mode'
+            f'   | {self.__class__.__name__}: Running in {self.parameterization}-prediction mode'
         )
         self.cond_stage_model = None
         self.clip_denoised = clip_denoised
@@ -701,7 +701,7 @@ class LatentDiffusion(DDPM):
 
     @rank_zero_only
     @torch.no_grad()
-    def on_train_batch_start(self, batch, batch_idx, dataloader_idx):
+    def on_train_batch_start(self, batch, batch_idx, dataloader_idx=None):
         # only for very first batch
         if (
             self.scale_by_std
@@ -1353,7 +1353,7 @@ class LatentDiffusion(DDPM):
                 num_downs = self.first_stage_model.encoder.num_resolutions - 1
                 rescale_latent = 2 ** (num_downs)
 
-                # get top left postions of patches as conforming for the bbbox tokenizer, therefore we
+                # get top left positions of patches as conforming for the bbbox tokenizer, therefore we
                 # need to rescale the tl patch coordinates to be in between (0,1)
                 tl_patch_coordinates = [
                     (
@@ -1890,7 +1890,7 @@ class LatentDiffusion(DDPM):
         N=8,
         n_row=4,
         sample=True,
-        ddim_steps=200,
+        ddim_steps=50,
         ddim_eta=1.0,
         return_keys=None,
         quantize_denoised=True,

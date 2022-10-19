@@ -64,7 +64,8 @@ def make_ddim_timesteps(
 ):
     if ddim_discr_method == 'uniform':
         c = num_ddpm_timesteps // num_ddim_timesteps
-        ddim_timesteps = np.asarray(list(range(0, num_ddpm_timesteps, c)))
+        # ddim_timesteps = np.asarray(list(range(0, num_ddpm_timesteps, c)))
+        ddim_timesteps = (np.arange(0, num_ddim_timesteps) * c).astype(int)
     elif ddim_discr_method == 'quad':
         ddim_timesteps = (
             (
@@ -81,8 +82,8 @@ def make_ddim_timesteps(
 
     # assert ddim_timesteps.shape[0] == num_ddim_timesteps
     # add one to get the final alpha values right (the ones from first scale to data during sampling)
-#    steps_out = ddim_timesteps + 1
-    steps_out = ddim_timesteps
+    steps_out = ddim_timesteps + 1
+    # steps_out = ddim_timesteps
 
     if verbose:
         print(f'Selected timesteps for ddim sampler: {steps_out}')
@@ -250,12 +251,6 @@ def normalization(channels):
     :return: an nn.Module for normalization.
     """
     return GroupNorm32(32, channels)
-
-
-# PyTorch 1.7 has SiLU, but we support PyTorch 1.5.
-class SiLU(nn.Module):
-    def forward(self, x):
-        return x * torch.sigmoid(x)
 
 
 class GroupNorm32(nn.GroupNorm):
